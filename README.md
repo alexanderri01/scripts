@@ -56,3 +56,103 @@ Bash
 curl -O [https://raw.githubusercontent.com/alexanderri01/scripts/main/deploy.py]
 (https://raw.githubusercontent.com/alexanderri01/rhel10-monitoring-stack/main/deploy.py) && chmod +x deploy.py && ./deploy.py
 📌 Примечание для пользователей Ubuntu: Если Docker устанавливается скриптом впервые, текущая сессия автоматически выполнит запуск через sudo, чтобы обойти ограничение прав сокета без необходимости перезаходить на сервер. Все последующие запуски будут работать без sudo.
+===========================================================================================================================================
+
+Вот обновленные секции для вашего `README.md`, описывающие, как масштабировать скрипт и добавлять новые контейнеры. Вы можете вставить этот блок в самый конец вашего текущего файла.
+
+---
+
+```markdown
+---
+
+## 🛠 How to Add New Containers / Как добавлять новые контейнеры
+
+### English
+
+The `deploy.py` script is built declaratively. If you want to expand the list of available tools in the future (e.g., adding MySQL, Redis, or Nginx), you only need to modify **two places** in the code:
+
+#### Step 1: Update the Selection Menu (`TOOLS_MAP`)
+Find the `TOOLS_MAP` dictionary at the top of the script and add your new item with the next incremental ID:
+```python
+TOOLS_MAP = {
+    1: ("Prometheus", "prometheus"),
+    # ...
+    10: ("Alertmanager (Менеджер алертов)", "alertmanager"),
+    11: ("PostgreSQL (Database)", "postgres")  # <-- Add your new line here
+}
+
+```
+
+*Note: The second value (`"postgres"`) is the internal ID and must be completely lowercase with no spaces.*
+
+#### Step 2: Add YAML Block to Configuration Generator (`generate_docker_compose`)
+
+Scroll down to the `generate_docker_compose` function and append an `if` block with your container's Docker Compose structure before the file write operation:
+
+```python
+    if "postgres" in selected_tools:
+        compose_data += """  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data:Z
+    restart: unless-stopped
+\n"""
+
+```
+
+> ⚠️ **RHEL 10 / Podman Notice:** If your new container mounts a local directory host volume (like `./data/postgres`), **always append the `:Z` flag** to the volume mapping string. This ensures SELinux labels are correctly assigned by Podman; otherwise, the container will crash with a `Permission denied` error.
+
+---
+
+### Русский
+
+Скрипт `deploy.py` спроектирован декларативно. Если в будущем вы захотите расширить список доступных инструментов (например, добавить MySQL, Redis или Nginx), вам потребуется изменить всего **два места** в коде:
+
+#### Шаг 1: Обновите меню выбора (`TOOLS_MAP`)
+
+Найдите словарь `TOOLS_MAP` в самом начале скрипта и добавьте туда новую строку со следующим порядковым номером:
+
+```python
+TOOLS_MAP = {
+    1: ("Prometheus", "prometheus"),
+    # ...
+    10: ("Alertmanager (Менеджер алертов)", "alertmanager"),
+    11: ("PostgreSQL (База данных)", "postgres")  # <-- Ваша новая строка
+}
+
+```
+
+*Примечание: Второй параметр (`"postgres"`) — это внутренний идентификатор, он должен быть написан в нижнем регистре и без пробелов.*
+
+#### Шаг 2: Добавьте блок YAML в генератор конфигурации (`generate_docker_compose`)
+
+Внутри функции `generate_docker_compose` найдите блок проверок и добавьте условие `if` с конфигурацией вашего контейнера для Docker Compose (перед финальной записью файла):
+
+```python
+    if "postgres" in selected_tools:
+        compose_data += """  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data:Z
+    restart: unless-stopped
+\n"""
+
+```
+
+> ⚠️ **Важно для RHEL 10 / Podman:** Если ваш новый контейнер монтирует локальные папки хоста (например, `./data/postgres`), **всегда добавляйте флаг `:Z**` в конце пути монтирования volume. Это необходимо для правильной разметки контекстов безопасности SELinux в Podman, иначе контейнер упадет с ошибкой `Permission denied`.
+
+```
+
+```
